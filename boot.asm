@@ -14,7 +14,7 @@ _start:
 
 	mov ax, 0x0000
 	mov es, ax
-	mov bx, 0x7e00
+	mov bx, 0x8000
 	mov dl, 0x00
 	mov ch, 0x00
 	mov cl, 0x02

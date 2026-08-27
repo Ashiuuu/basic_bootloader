@@ -15,7 +15,7 @@ SECTIONS
 	}
 
 	. = 0x7e00;
-	.text.stage2 : {
+	.text.stage2 0x8000 : AT(0x7e00) {
 		stage2.o(.text)
 		*(.rodata*)
 		*(.data)
