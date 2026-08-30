@@ -1,7 +1,7 @@
 [BITS 16]
 global _start
 extern kernel_start
-extern _total_sectors
+extern _stage2_sectors
 
 section .text
 _start:
@@ -13,19 +13,52 @@ _start:
 	mov si, msg
 	call print_string
 
-	; Read sectors from floppy disk
+    ; Loading stage 2 into memory
+    ; To read high size images, we need to read in a loop
 	xor ax, ax
 	mov es, ax              ; ES:BX destination data buffer
 	mov bx, 0x8000          ; ES:BX destination data buffer
-	mov dl, 0x00            ; Drive number
-	mov ch, 0x00            ; Low eight bits of cylinder number
+
+    mov di, word _stage2_sectors  ; Total number of sectors to read
+	; do not override dl, as BIOS but the driver number before jumping on 0x7c00
+
+	; Initial values: Sector 2 | Cylinder 0 | Head 0
 	mov cl, 0x02            ; Sector number
+	mov ch, 0x00            ; Low eight bits of cylinder number
 	mov dh, 0x00            ; Head number
-	mov al, _total_sectors  ; Number of sectors to read
+
+.read_loop:
+    cmp di, 0
+    jbe .read_success
+
+	; Read sectors from floppy disk
 	mov ah, 0x02            ; Read in CHS (Cylinder Head Sector) mode
+	mov al, 0x01            ; Because of loop, just read sectors 1 one at a time
 	int 0x13                ; Floppy disk/HDD related interrupts
 	jc .fail
-	jmp .read_success
+
+    dec di                  ; Decrement number of sectors to read
+    ; Advance RAM destination
+    mov ax, es
+    add ax, 0x0020
+    mov es, ax
+
+    ; Advance sector
+    inc cl
+    cmp cl, 19              ; Check if we went around the whole track
+    jne .read_loop
+
+    ; We wrapped, increase head and repeat
+    mov cl, 1
+    inc dh
+    cmp dh, 2
+    jne .read_loop
+
+    ; We used both heads, change cylinder
+    mov dh, 0
+    inc ch
+    jmp .read_loop
+
 .fail:
 	mov si, read_error_msg
 	call print_string
@@ -35,7 +68,7 @@ _start:
 	mov si, read_msg
 	call print_string
 
-	jmp kernel_start
+	jmp stage2
 
 	jmp $ 			; hang
 
