@@ -24,24 +24,40 @@ SECTIONS
 		stage2.o(.bss .bss.*)
 	}
 
-	. = ALIGN(4096);
-	.text.kernel : {
-		kernel.o(.text .text.*)
+	_stage2_end = .;
+
+    . = ALIGN(512);
+
+	_kernel_lma_start = .;
+
+	. = 0x100000;
+
+	_kernel_start = .;
+
+	.kernel 0x100000 : AT(_kernel_lma_start) SUBALIGN(4) {
+        kernel.o(.text.kernel_main)
+        kernel.o(.text .text.*)
+        kernel.o(.rodata .rodata.*)
+        kernel.o(.data .data.*)
 	}
 
-	.rodata.kernel : {
-		kernel.o(.rodata .rodata.*)
-	}
+	. = ALIGN(1);
 
-	.data.kernel : {
-		kernel.o(.data .data.*)
-	}
+	_kernel_end = .;
 
 	.bss.kernel : {
 		kernel.o(.bss .bss.*)
 	}
 
-	_kernel_end = .;
+    /DISCARD/ : {
+        *(.eh_frame)
+        *(.eh_frame_hdr)
+        *(.comment)
+        *(.note.*)
+    }
 
-	_total_sectors = (_kernel_end - _stage2_start + 511) / 512;
+	_stage2_sectors = (_stage2_end - _stage2_start + 511) / 512;
+	_kernel_lba_start = 1 + _stage2_sectors;
+	_kernel_size = (_kernel_end - _kernel_start);
+	_kernel_sectors = (_kernel_size + 511) / 512;
 }
